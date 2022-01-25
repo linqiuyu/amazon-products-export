@@ -5,6 +5,7 @@ var colorSelectors = document.querySelectorAll(".js-radio");
 
 var setColor = (color) => {
   document.body.style.backgroundColor = color;
+
 };
 
 storage.get('color', function(resp) {
