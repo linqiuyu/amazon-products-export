@@ -1,6 +1,6 @@
 import ext from "./utils/ext";
 
-let products_data = [];
+let products_data = {};
 
 /**
  * 去除首尾空格
@@ -14,8 +14,17 @@ function trimStr(str){
 /**
  * 从文档中获取产品数据
  * @param {*} resonse 
+ * @param string sku
  */
-function getProductData(resonse = null) {
+function getProductData(resonse = null, sku = null) {
+  if (!sku) {
+    return;
+  }
+
+  if (sku in products_data) {
+    return;
+  }
+
   let _document;
   if (resonse) {
     _document = resonse;
@@ -26,10 +35,12 @@ function getProductData(resonse = null) {
   console.log(_document.querySelector('body'));
 
   let data = {
+    sku: sku,
     title: '',
     overviews: {},
     feature_list: [],
-    images: []
+    images: [],
+    type: 'simple',
   };
 
   // 获取商品标题
@@ -118,13 +129,39 @@ function getProductData(resonse = null) {
   const variations = _document.querySelector('#ppd #twister_feature_div');
   console.log(/<script.*>(?:.|\n)*<\/script>\n+<\/div>/.exec(variations.innerHTML));
   if (variations) {
+    data.type = 'variable';
     console.log(variations);
     const variations_patt = /<script.*>(?:.|\n)*var dataToReturn = \{(?:.|\n)*"dimensionToAsinMap"\D?:\D?(\{.*\}),\n/.exec(variations.innerHTML);
     console.log(variations_patt);
+    if (variations_patt) {
+      const variation_objects = JSON.parse(variations_patt[1]);
+      console.log(variation_objects);
+      data.variations = variation_objects;
+    }
   }
 
-  products_data.push(data);
+  products_data[sku] = data;
   console.log(products_data);
+}
+
+/**
+ * 从url中获取sku
+ * @param string url 
+ * @returns 
+ */
+function getSkuFromUrl(url = null) {
+  if (!url) {
+    url = window.location.href;
+  }
+
+  console.log(url);
+  const pattern = /[\w\:\.\/-]*dp\/(\w+)\/*/.exec(url);
+
+  if (pattern) {
+    return pattern[1];
+  } else {
+    return null;
+  }
 }
 
 /**
@@ -146,9 +183,8 @@ function httpGet(theUrl)
 
     xmlhttp.onreadystatechange = function()
     {
-        if (xmlhttp.readyState === 4 && xmlhttp.status === 200)
-        {
-          getProductData(xmlhttp.responseXML);
+        if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
+          getProductData(xmlhttp.responseXML, getSkuFromUrl(theUrl));
         }
     }
 
@@ -176,10 +212,10 @@ items.forEach(function(item) {
     const url = a.getAttribute('href');
     // console.log(url);
 
-    if (i === 0) {
+    // if (i === 3) {
       console.log(url);
       const result = httpGet(url);
-    }
+    // }
     i ++;
   }
 });
