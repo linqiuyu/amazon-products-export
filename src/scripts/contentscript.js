@@ -32,8 +32,6 @@ function getProductData(resonse = null, sku = null) {
     _document = document;
   }
 
-  console.log(_document.querySelector('body'));
-
   let data = {
     sku: sku,
     title: '',
@@ -127,21 +125,17 @@ function getProductData(resonse = null, sku = null) {
 
   // 获取变体数据
   const variations = _document.querySelector('#ppd #twister_feature_div');
-  console.log(/<script.*>(?:.|\n)*<\/script>\n+<\/div>/.exec(variations.innerHTML));
   if (variations) {
     data.type = 'variable';
-    console.log(variations);
     const variations_patt = /<script.*>(?:.|\n)*var dataToReturn = \{(?:.|\n)*"dimensionToAsinMap"\D?:\D?(\{.*\}),\n/.exec(variations.innerHTML);
-    console.log(variations_patt);
     if (variations_patt) {
       const variation_objects = JSON.parse(variations_patt[1]);
-      console.log(variation_objects);
       data.variations = variation_objects;
     }
   }
 
   products_data[sku] = data;
-  console.log(products_data);
+  console.log( products_data );
 }
 
 /**
@@ -154,8 +148,7 @@ function getSkuFromUrl(url = null) {
     url = window.location.href;
   }
 
-  console.log(url);
-  const pattern = /[\w\:\.\/-]*dp\/(\w+)\/*/.exec(url);
+  const pattern = /[\w\:\.\/-]*dp\/(\w+)\/*/.exec(decodeURIComponent(url));
 
   if (pattern) {
     return pattern[1];
@@ -195,28 +188,12 @@ function httpGet(theUrl)
 
 // 获取商品列表
 const items = document.querySelectorAll('span.s-latency-cf-section .s-main-slot.s-search-results .s-result-item[data-uuid]');
-// console.log(items);
 
-let i = 0;
 items.forEach(function(item) {
-  products_data = [];
-
-  // console.log(item);
-  const title = item.querySelector('h2 span.a-text-normal');
-  if (title) {
-    // console.log('title', title.innerHTML);
-  }
-  const a = item.querySelector('h2 a.a-link-normal');
-  if (a) {
-    // console.log(a);
-    const url = a.getAttribute('href');
-    // console.log(url);
-
-    // if (i === 3) {
-      console.log(url);
-      const result = httpGet(url);
-    // }
-    i ++;
-  }
+    const a = item.querySelector('h2 a.a-link-normal');
+    if (a) {
+      const url = a.getAttribute('href');
+      httpGet(url);
+    }
 });
 
