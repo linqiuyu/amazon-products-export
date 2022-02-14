@@ -1,6 +1,7 @@
 import ext from "./utils/ext";
 
-let products_data = {};
+let products_data = [];
+let product_slugs = [];
 
 /**
  * 去除首尾空格
@@ -15,13 +16,14 @@ function trimStr(str){
  * 从文档中获取产品数据
  * @param {*} resonse 
  * @param string sku
+ * @param object args
  */
-function getProductData(resonse = null, sku = null) {
+function getProductData(resonse = null, sku = null, args = {}) {
   if (!sku) {
     return;
   }
 
-  if (sku in products_data) {
+  if (product_slugs.includes(sku)) {
     return;
   }
 
@@ -39,7 +41,10 @@ function getProductData(resonse = null, sku = null) {
     feature_list: [],
     images: [],
     type: 'simple',
+    parent: null,
   };
+
+  Object.assign(data, args);
 
   // 获取商品标题
   const title = _document.querySelector('#ppd #centerCol #titleSection #title #productTitle');
@@ -124,17 +129,41 @@ function getProductData(resonse = null, sku = null) {
   } 
 
   // 获取变体数据
-  const variations = _document.querySelector('#ppd #twister_feature_div');
-  if (variations) {
-    data.type = 'variable';
-    const variations_patt = /<script.*>(?:.|\n)*var dataToReturn = \{(?:.|\n)*"dimensionToAsinMap"\D?:\D?(\{.*\}),\n/.exec(variations.innerHTML);
-    if (variations_patt) {
-      const variation_objects = JSON.parse(variations_patt[1]);
-      data.variations = variation_objects;
+  if (!data.parent ) {
+    const variations = _document.querySelector('#ppd #twister_feature_div');
+    if (variations) {
+      data.type = 'variation';
+      const variations_patt = /<script.*>(?:.|\n)*var dataToReturn = \{(?:.|\n)*"dimensionToAsinMap"\D?:\D?(\{.*\}),\n/.exec(variations.innerHTML);
+      if (variations_patt) {
+        const variation_objects = JSON.parse(variations_patt[1]);
+        data.variations = variation_objects;
+  
+        Object.values(data.variations).forEach(function(variation) {
+          httpGet('/dp/' + variation, {
+            type: "variartion",
+            parent: sku,
+          })
+        });
+      }
     }
   }
 
-  products_data[sku] = data;
+  // 获取变体属性
+  const attrs = _document.querySelectorAll('#twister_feature_div form#twister .a-section');
+  if ( attrs ) {
+    data.attrs = [];
+    attrs.forEach(function(item) {
+      const attr_name = trimStr(item.querySelector('.a-form-label').textContent).replace(/:$/g,"");
+      const attr_value = trimStr(item.querySelector('.selection').textContent);
+      data.attrs.push({
+        name: attr_name,
+        value: attr_value
+      })
+    })
+  }
+
+  products_data.push(data);
+  product_slugs.push(sku);
   console.log( products_data );
 }
 
@@ -159,9 +188,10 @@ function getSkuFromUrl(url = null) {
 
 /**
  * 获取页面数据
- * @param {string} theUrl 
+ * @param string theUrl 
+ * @param object args
  */
-function httpGet(theUrl)
+function httpGet(theUrl, args = {})
 {
     let xmlhttp;
 
@@ -174,10 +204,15 @@ function httpGet(theUrl)
         xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
     }
 
+    const sku = getSkuFromUrl(theUrl);
+    if ( product_slugs.includes(sku) ) {
+      return;
+    }
+
     xmlhttp.onreadystatechange = function()
     {
         if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
-          getProductData(xmlhttp.responseXML, getSkuFromUrl(theUrl));
+          getProductData(xmlhttp.responseXML, sku, args);
         }
     }
 
@@ -189,11 +224,17 @@ function httpGet(theUrl)
 // 获取商品列表
 const items = document.querySelectorAll('span.s-latency-cf-section .s-main-slot.s-search-results .s-result-item[data-uuid]');
 
+let i = 0;
 items.forEach(function(item) {
     const a = item.querySelector('h2 a.a-link-normal');
     if (a) {
-      const url = a.getAttribute('href');
-      httpGet(url);
+      if (i === 0) {
+        const url = a.getAttribute('href');
+        httpGet(url);
+      }
+      i ++;
     }
+
+    console.log(111);
 });
 
